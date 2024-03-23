@@ -1,0 +1,85 @@
+import re
+from jsonpath import jsonpath
+import requests
+
+
+class weibo(object):
+    def __init__(self):
+        self.url = "https://weibo.com/ajax/statuses/buildComments"
+        self.headers = {
+            'cookie': '请使用自己的cookie',
+            'referer': 'https://weibo.com/1259110474/O5Ldm9h9j',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        }
+        self.one_params = {
+            'is_reload': '1',
+            'id': '5013952964593083',
+            'is_show_bulletin': '2',
+            'is_mix': '0',
+            'count': '10',
+            'uid': '1275280670',
+            'fetch_level': '0',
+            'locale': 'zh-CN'
+        }
+
+        self.two_params = {
+            'is_reload': '1',
+            'id': '5013953489145633',
+            'is_show_bulletin': '2',
+            'is_mix': '1',
+            'fetch_level': '1',
+            'max_id': '0',
+            'count': '20',
+            'uid': '1275280670',
+            'locale': 'zh-CN'
+        }
+
+    def get_one_comments(self):
+        response = requests.get(self.url, headers=self.headers, params=self.one_params)
+        data = response.json()
+        raw_data = jsonpath(data, '$..data.*.text_raw')
+        id_data = jsonpath(data, '$..data.*.user.screen_name')
+        # 一级评论第二页开始params发生变化，改变参数的同时，需要上一页的max_id
+        max_id = jsonpath(data, '$.max_id')[0]
+        root_id = jsonpath(data, '$..data.*.rootid')
+        print(max_id)
+        self.one_params['max_id'] = max_id
+        self.one_params['count'] = '20'
+        print(len(raw_data), len(id_data))
+        print(root_id[0])
+
+        for raw_data, id_data, root in zip(raw_data, id_data, root_id):
+            print(raw_data + '=====>' + id_data)
+            self.two_params["id"] = root
+            self.get_two_comments()
+        try:
+            self.get_one_comments()
+        except:
+            print("当前评论全部爬取完毕")
+
+    def get_two_comments(self):
+        try:
+            response = requests.get(self.url, headers=self.headers, params=self.two_params)
+            data = response.json()
+            raw_data = jsonpath(data, '$..data.*.text_raw')
+            id_data = jsonpath(data, '$..data.*.user.screen_name')
+            print(len(raw_data), len(id_data))
+            for raw_data, id_data in zip(raw_data, id_data):
+                print('     ' + raw_data + '=====>' + id_data)
+            max_id = jsonpath(data, '$.max_id')[0]
+            self.two_params['max_id'] = max_id
+        except:
+            if self.two_params['max_id'] == 0:
+                print("二级标题以爬取完成")
+            else:
+
+                self.get_two_comments()
+
+    def run(self):
+        self.get_one_comments()
+        # self.get_two_comments()
+
+
+if __name__ == '__main__':
+    wb = weibo()
+    wb.run()
