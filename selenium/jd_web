@@ -1,0 +1,59 @@
+from selenium import webdriver
+import time
+from selenium.webdriver.common.by import By  # 选择器
+from selenium.webdriver.common.keys import Keys  # 按键
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import json
+
+
+class JD(object):
+    def __init__(self):
+        self.url = 'http://jd.com/'
+        self.browser = webdriver.Chrome()
+
+    def get_id(self):
+        self.browser.get(self.url)
+        # 等待
+        wait = WebDriverWait(self.browser, 10)
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.search-m .form input')))
+        text_input = self.browser.find_element(By.ID, 'key')
+        text_input.send_keys('零食')
+        text_input.send_keys(Keys.ENTER)
+
+    def get_data(self):
+        # 等待
+        time.sleep(10)
+        # 下拉滑块
+        self.browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        # 等待
+        time.sleep(10)
+        #
+        self.parse_data()
+        # 点击下一页
+        try:
+            self.browser.find_element(By.CSS_SELECTOR, '.p-wrap span .pn-next').click()
+            self.get_data()
+        except:
+            print("爬取完成")
+
+    def parse_data(self):
+        prices = self.browser.find_elements(By.CSS_SELECTOR, '.gl-i-wrap .p-price strong i')
+        shop_names = self.browser.find_elements(By.CSS_SELECTOR, '.gl-i-wrap .p-shop span a')
+        print(len(shop_names))
+        shop_info = {}
+        for price, shop_name in zip(prices, shop_names):
+            shop_info["店铺名"] = shop_name.text
+            shop_info["价格"] = price.text
+            json_data = json.dumps(shop_info, ensure_ascii=False)
+            with open('shop_info.json', 'a', encoding='utf-8') as f:
+                f.write(json_data + ',\n')
+
+    def run(self):
+        self.get_id()
+        self.get_data()
+
+
+if __name__ == '__main__':
+    jd = JD()
+    jd.run()
